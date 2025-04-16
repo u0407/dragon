@@ -1,3 +1,7 @@
-./venv
-./csv
-./outputs
+venv
+*.csv
+GA_Shane/outputs
+__pychache__
+GA_Shane/__pycache__
+*.jpg
+*.log
