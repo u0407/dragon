@@ -14,7 +14,7 @@ using DataFrames
 
 function eval_loss(tree, dataset::Dataset{T,L}, options)::L where {T,L}
     # Target # of output rows in minute freq of 27 minutes
-    freq = 60 
+    freq = 15 
 
     # Ensure constants are int with no digits . 
     for node in tree
@@ -29,8 +29,16 @@ function eval_loss(tree, dataset::Dataset{T,L}, options)::L where {T,L}
 
     # predict with X 
     prediction, flag = eval_tree_array(tree, dataset.X, options)
+    prediction2, flag2 = eval_tree_array(tree, dataset.X*100, options)
+
     if !flag || any(isnan, prediction)  # Add NaN check for predictions
         return L(Inf)
+    end
+
+    if (prediction[100] != prediction2[100]) && (prediction[10] != prediction2[10])
+        multiplier = 3
+    else
+        multiplier = 1
     end
 
     # Predicted operators
@@ -85,7 +93,8 @@ function eval_loss(tree, dataset::Dataset{T,L}, options)::L where {T,L}
 
     dist = Normal(0, 1)  
     ad_test = OneSampleADTest(diffs_z, dist)
-    stats = ad_test.A²
+    stats = ad_test.A² 
+    stats = stats/multiplier
     # jb_test= JarqueBeraTest(diffs_z)
     # stats = 1/jb_test.JB * 100
 

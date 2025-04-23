@@ -15,13 +15,11 @@ from sklearn import preprocessing
 warnings.filterwarnings('ignore')
 
 code = 'RB'
-roll = 5
-label = 30
 test_start = '2023-01-01'
 reduncy_rows = 50
-fix = 513
+fix = 913
 
-part = '20250408_183923_tf0A9D'
+part = '20250423_103729_r0uXA3'
 dir = f'E:/dragon/GA_Shane/outputs/{part}'
 os.chdir(dir)
 

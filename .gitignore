@@ -5,5 +5,7 @@ __pychache__
 GA_Shane/__pycache__
 *.jpg
 *.log
+*.png
 *.nbc
 *.nbi
+*.pkl

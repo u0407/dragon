@@ -12,81 +12,62 @@ from scipy.stats import skew, kurtosis
 code = 'RB'
 suffix = f'{code}99_1m'
 csv_path =   f"./{suffix}.csv"
-part = '20250412_handmade'
+part = '20250420_handmade'
 model_pth =  rf'E:\dragon\GA_Shane\outputs\{part}\hall_of_fame.csv'
 project_pth = rf'E:\dragon\GA_Shane\outputs\{part}'
 os.makedirs(project_pth,exist_ok=True)
 
-freq = 45 
+freq = 20
 size = None
 
-df = pl.read_csv(csv_path)
-df = df.drop(['order_book_id','trading_date'])
-df = df.rename({'datetime':'eob'})
-
-def transform(df):
-    df = df.sort('eob')
-    df = df.with_columns([pl.arange(0, df.height).alias('index')])
-    df = df.select([
-        pl.col('index'),
-        pl.col('eob'),
-        pl.exclude(['index','eob'])
-    ])
-
-    return df 
-
+df = pl.read_csv(csv_path + '.cache.csv').fill_nan(0)
 df = transform(df)
 
+def gen_axis_index(df):
 
+    factor_expr = (
+        (pl.col('prev_high') - pl.min_horizontal('prev_bot','open'))*
+        pl.col('std_ret_mid3')*
+        ((pl.col('bot')-pl.col('high')).sign())*
+        pl.col('vol2oi')
+    ).alias('factor')
+    #  # "(((prev_high - min(prev_bot, open)) * std_ret_mid3) * sign(bot - prev_high)) * vol2oi"
 
-def gen_axis_index(df, size=1, freq=45, apply_abs = True):
-    # 
-    cols = df.columns
-    """((low - max(prev_bot, top)) * (bot - high)) * top"""
-    df = df.with_columns([
-            pl.max_horizontal(pl.col('open'), pl.col('close')).alias('p_top'),
-            pl.min_horizontal(pl.col('open'), pl.col('close')).alias('p_bot'),
-        ]).with_columns([
-            pl.col('p_bot').shift().alias('prev_bot'),
-            pl.col('low').log().alias('log_low'),
-            pl.col('high').log().alias('log_high'),
-            pl.col('p_top').log().alias('log_p_top'),
-            pl.col('p_bot').log().alias('log_p_bot'),
-        ]).with_columns([
-            pl.col('prev_bot').log().alias('log_prev_bot'),
-        ]).with_columns([
-            (
-                (pl.col('log_low') - pl.max_horizontal(pl.col('log_prev_bot'), pl.col('log_p_top'))) *
-                (pl.col('log_p_bot') - pl.col('log_high')) *
-                pl.col('log_p_top')
-            ).alias('factor')
-        ])
+    df = df.with_columns(factor_expr)
     
-    if apply_abs:
-        df = df.with_columns(pl.col('factor').abs().alias('factor'))
+    return df['factor'].to_numpy()
+y_pred = gen_axis_index(df)
+
+df = pd.read_csv(csv_path)
+df.reset_index(inplace=True)
+df.rename(columns={'datetime':'eob','index':'hang'},inplace=True)
+df.drop(columns=['order_book_id','trading_date'])
+df['eob'] = pd.to_datetime(df['eob'])
+
+df['factor'] = y_pred
+df['factor'] = np.abs(df['factor'])
+df = transform(pl.DataFrame(df))
+
+def agg_to_axis(df,size,freq):
+    if isinstance(df, pd.DataFrame):
+        df = pl.DataFrame(df)
+
+    v = df['factor'].to_pandas().iloc[:180000]
+    v = v.replace({np.inf:np.nan, -np.inf:np.nan})
+    if size is None:
+        size = v.mean() * freq
+        size = auto_round(size)
+
+    df = df.with_columns(pl.col('factor').abs().alias('factor'))
 
     df = df.with_columns([
         pl.col('factor').cum_sum().alias('pos_sum'),
     ])
 
-    if size == None :
-        size = df['factor'].to_pandas().iloc[:180000].mean() * freq
-        size = auto_round(size)
-
-    print(' size of thred: ',size)
     df = df.with_columns([
         (pl.col('pos_sum') // size).cast(pl.Int64).alias('group')
     ])
-    # 
-    df = df[cols+ ['factor','pos_sum','group']]
-    return  df
-
-df = gen_axis_index(df, size=size, freq=45, apply_abs=True)
-
-
-def agg_to_axis(df):
-    if isinstance(df, pd.DataFrame):
-        df = pl.DataFrame(df)
+    print('size of thred: ', size)
 
     df = df.group_by('group').agg([
         pl.col('eob').last().alias('eob'),
@@ -105,32 +86,23 @@ def agg_to_axis(df):
     ])
     return df
 
-axis_df = agg_to_axis(df)
-closes = axis_df['close'].to_numpy()
-rets = closes[1:] - closes[:-1]
-rets = rets[np.isfinite(rets)]
-z_rets = (rets - np.mean(rets)) / np.std(rets)
-z_skewness = skew(z_rets)
-print("Z-standardized returns skewness:", z_skewness)
-
-
-
+axis_df = agg_to_axis(df,size=size,freq=freq)
+print("len axis df ",len(axis_df))
 os.chdir(project_pth)
 os.makedirs('./picture',exist_ok=1)
 os.makedirs('./temp',exist_ok=1)
 
-
+axis_df.write_csv(f'./{suffix}_output_axis.csv')
 df[['eob', 'factor']].rename({'factor': part}).write_csv(
     f'./{suffix}_factor_{part}.csv'
 )
 
-axis_df.write_csv(f'./{suffix}_output_axis.csv')
-
-title_file = f"{suffix}_{len(axis_df)}_{len(axis_df.filter(pl.col('eob') > '2023-01-01'))}"
+title_file = f"{suffix}_{len(axis_df)}"
 file_name1 = f'./{suffix}_output_axis'
 bars = pd.read_csv(f'{file_name1}.csv')
 
 bars.set_index("eob", inplace=True)
+
 
 returns_1 = np.log(bars['close']).diff().dropna()
 returns_2 = np.log(bars['close']).diff(periods=2).dropna()
@@ -144,9 +116,15 @@ standard_2 = (returns_2 - returns_2.mean()) / returns_2.std()
 standard_3 = (returns_3 - returns_3.mean()) / returns_3.std()
 standard_4 = (returns_4 - returns_4.mean()) / returns_4.std()
 standard_5 = (returns_5 - returns_5.mean()) / returns_5.std()
+random_value = np.random.normal(size=1000000)
 
 skewness = skew(standard_1)
 kurt = kurtosis(standard_1,fisher=1)
+print("skew of series, ", skewness, "kurt of series: ", kurt)
+
+skewness2 = skew(random_value)
+kurt2 = kurtosis(random_value,fisher=1)
+print("skew of normal, ", skewness2, "kurt of normal: ", kurt2)
 
 plt.figure(figsize=(16,12))
 
@@ -156,7 +134,7 @@ sns.kdeplot(standard_3, label="3", color='blue')
 sns.kdeplot(standard_4, label="4", color='orange')
 sns.kdeplot(standard_5, label="5", color='magenta')
 
-sns.kdeplot(np.random.normal(size=1000000), label="Normal", color='black', linestyle="--")
+sns.kdeplot(random_value, label="Normal", color='black', linestyle="--")
 
 plt.xticks(range(-5, 6))
 plt.legend(loc=8, ncol=5)

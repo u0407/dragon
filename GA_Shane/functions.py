@@ -130,3 +130,91 @@ def dynamic_sample_entropy_numba(x, m, r_ratio, use_std):
     if np.isnan(entropy):
         return 0
     return entropy
+
+# LPCC
+
+import scipy 
+from scipy.fft import fft, ifft
+import numpy as np
+
+def create_symmetric_matrix(acf, order=11):
+    """Computes a symmetric matrix.
+
+    Implementation details and description in:
+    https://ccrma.stanford.edu/~orchi/Documents/speaker_recognition_report.pdf
+
+    Parameters
+    ----------
+    acf : nd-array
+        Input from which a symmetric matrix is computed
+    order : int
+        Order
+
+    Returns
+    -------
+    nd-array
+        Symmetric Matrix
+    """
+
+    smatrix = np.empty((order, order))
+    xx = np.arange(order)
+    j = np.tile(xx, order)
+    i = np.repeat(xx, order)
+    smatrix[i, j] = acf[np.abs(i - j)]
+
+    return smatrix
+
+def lpc(signal, n_coeff=12):
+    """Computes the linear prediction coefficients.
+
+    Implementation details and description in:
+    https://ccrma.stanford.edu/~orchi/Documents/speaker_recognition_report.pdf
+
+    Parameters
+    ----------
+    signal : nd-array
+        Input from linear prediction coefficients are computed
+    n_coeff : int
+        Number of coefficients
+
+    Returns
+    -------
+    nd-array
+        Linear prediction coefficients
+    """
+
+    if signal.ndim > 1:
+        raise ValueError("Only 1 dimensional arrays are valid")
+    if n_coeff > signal.size:
+        raise ValueError("Input signal must have a length >= n_coeff")
+
+    # Calculate the order based on the number of coefficients
+    order = n_coeff - 1
+
+    # Calculate LPC with Yule-Walker
+    acf = scipy.signal.correlate(signal, signal, "full")
+
+    r = np.zeros(order + 1, "float32")
+    # Assuring that works for all type of input lengths
+    nx = np.min([order + 1, len(signal)])
+    r[:nx] = acf[len(signal) - 1 : len(signal) + order]
+
+    smatrix = create_symmetric_matrix(r[:-1], order)
+
+    if np.sum(smatrix) == 0:
+        return tuple(np.zeros(order + 1))
+
+    lpc_coeffs = np.dot(np.linalg.inv(smatrix), -r[1:])
+
+    return tuple(np.concatenate(([1.0], lpc_coeffs)))
+
+def lpcc(signal, n_coeff=12,i=0):
+    """Computes linear prediction cepstral coefficients using scipy.fft"""
+    lpc_coeffs = lpc(signal, n_coeff)
+    if np.allclose(lpc_coeffs, 0): return tuple(np.zeros(n_coeff))
+    
+    power_spectrum = np.abs(fft(lpc_coeffs, n=2*n_coeff)) ** 2
+    log_spectrum = np.log(np.maximum(power_spectrum, 1e-10))  # Avoid log(0)
+    lpcc_coeff = ifft(log_spectrum)[:n_coeff]
+    
+    return tuple(np.abs(lpcc_coeff.real))[i]

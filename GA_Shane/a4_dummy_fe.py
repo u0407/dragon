@@ -17,12 +17,10 @@ from functions import *
 warnings.filterwarnings('ignore')
 
 code = 'RB'
-roll = 5
-label = 30
 test_start = '2023-01-01'
-fix = 513
+fix = 913
 
-part = '20250411_221021_UG9qRH'
+part = '20250423_103729_r0uXA3'
 dir = f'E:/dragon/GA_Shane/outputs/{part}'
 
 window_size = 10 
@@ -38,16 +36,16 @@ file_name_2 = glob.glob(os.path.join(dir, f'*_output_axis_Label_{str(fix)}.csv')
 df_label = pd.read_csv(file_name_2)
 
 
-df = df.merge(df_label[['datelist','state']], left_on='eob',right_on='datelist',how='left')
-df_label = df[['eob','state']]
+df = df.merge(df_label[['datelist','state','state_p']], left_on='eob',right_on='datelist',how='left')
+df_label = df[['eob','state','state_p']]
 df.drop(columns=['datelist'],inplace=True)
 
 """ 
 Feature Generation
 """
 features = ['open','high','low','close','volume']
-X = df.copy(deep=True)[['state']+features]
-X[features]=X[features].shift(1) # 因为是需要预测当期的状态，所以需要将X shift1
+X = df.copy(deep=True)[['state','state_p']+features]
+X.loc[:,['state','state_p']] = X.loc[:,['state','state_p']].shift(-1)
 X = X.dropna()
 print(X.head())
 print("Original X.shape: ", X.shape)
@@ -72,7 +70,7 @@ for i in range(1,10,2):
     for feature in price_features:
         for feature2 in price_features:
             if feature!=feature2:
-                X[f'{feature}_+_{feature2}_diff_{i}'] = (X[feature]+X[feature2].shift(i))/2
+                X[f'{feature}_+_{feature2}_diff_{i}'] = np.log((np.exp(X[feature])+np.exp(X[feature2]))/2).diff(i)
 
 X['h2l'] = X['high'] - X['low']
 X['o2c'] = X['open'] - X['close']
@@ -103,12 +101,13 @@ for feature in price_features:
 
 generated_features = [col for col in X.columns if col not in features]
 X = X[generated_features]
+
 print("Generated X.shape: ", X.shape)
 print('A0 in X' , 'A0' in X.columns)
 print("Null Rows count: ",(len(X.dropna())- len(X)))
 
 # Feature shifting
-shift_params = [1,3,9]
+shift_params = [1,3,5,9]
 
 for shift in shift_params:
     X_shift = X[generated_features].shift(shift)
@@ -118,12 +117,20 @@ print("Generated X.shape with {} shifts : {}".format(len(shift_params),X.shape))
 print("Null Rows count: ",(len(X.dropna())- len(X)))
 X = X.dropna()
 inf_columns = X.columns[np.isinf(X).any()].tolist()
-X = X.rename(columns={'state':'A0'})
+X = X.rename(columns={'state':'A0','state_p':'A0_p'})
 
 # Train Test Splitting
 is_test = df['eob'] > test_start
 X_train = X[~is_test]
-X_test = X[is_test].drop(columns=['A0'])
+X_test = X[is_test].drop(columns=['A0','A0_p'])
+
+from sklearn.preprocessing import StandardScaler
+# features = X_test.columns
+features =  [ col for col in X_test.columns if 'entropy' in col]
+scaler = StandardScaler().fit(X_train[features])
+X_train[features] = scaler.transform(X_train[features])
+X_test[features] = scaler.transform(X_test[features])
+
 
 print(X_train.tail())
 print(X_test.tail())
@@ -146,7 +153,7 @@ pl.DataFrame(X_train).write_csv(file_Train)
 pl.DataFrame(X_test).write_csv(file_Test)
 
 file_Test_PCA = file_name_1 + "_Test_"  + str(fix) +  "_" + str(Test) + '_PCA' + '.csv'
-tmp_df = X_train.drop('A0', axis=1)   ### 删除A0这列
+tmp_df = X_train.drop(['A0','A0_p'], axis=1)   ### 删除A0这列
 
 X_test_PCA = pd.concat([tmp_df, X_test], axis=0, ignore_index=True)
 X_test_PCA = pd.concat([X_test_PCA, tmp_df], axis=0, ignore_index=True)

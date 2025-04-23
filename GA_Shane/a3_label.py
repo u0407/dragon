@@ -9,12 +9,12 @@ import scipy.stats as scs
 import glob 
 import os 
 
-part = '20250411_handmade'
+part = '20250423_103729_r0uXA3'
 project_pth = f'E:/dragon/GA_Shane/outputs/{part}'
+
 os.chdir(project_pth)
 
 file = glob.glob(project_pth+'/*_output_axis.csv')[0]
-L = 5     ### 1阶与X阶
 
 os.makedirs(project_pth+'/picture',exist_ok=True)
 os.chdir(project_pth+'/picture')
@@ -22,7 +22,7 @@ os.chdir(project_pth+'/picture')
 print("Project: ",part)
 print("file: ",file)
 
-for L in [5,6,7,8,9]:
+for L in [5,7,9]:
     
     diff = 1     ### 1是有HLdiff，0是没有HLdiff
     mix = 3    ### GMM mix参数
@@ -51,7 +51,9 @@ for L in [5,6,7,8,9]:
     gmm = GMMHMM(n_components = 2, n_mix=mix, covariance_type='diag', n_iter = 369, random_state = 369).fit(X)
 
     latent_states_sequence = gmm.predict(X)
-    len(latent_states_sequence)
+    latent_states_proba = gmm.predict_proba(X)[:,0]
+    latent_states_proba = np.abs(latent_states_proba-0.5)
+    
     sns.set_style('white')
     plt.figure(figsize = (20, 8))
     for i in range(gmm.n_components):
@@ -93,7 +95,7 @@ for L in [5,6,7,8,9]:
 
 
     # 自动判断，将标签的 1与0，变为buy为1，sell为0
-    data = pd.DataFrame({'datelist':datelist,'logreturn':logreturn,'state':latent_states_sequence}).set_index('datelist')
+    data = pd.DataFrame({'datelist':datelist,'logreturn':logreturn,'state':latent_states_sequence,'state_p':latent_states_proba}).set_index('datelist')
     for i in range(gmm.n_components):
         state = (latent_states_sequence == i)
         idx = np.append(0,state[:-1])
