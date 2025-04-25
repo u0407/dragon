@@ -21,13 +21,14 @@ os.chdir('./GA_Shane/')
 7 - Jarque Bera Test
 """
 version = 7
-freq = 20
-L = 9
+freq = 45
+L = 7
+print(f'version {version} ; freq {freq}; L {L}')
 
 length = 300000
 csv_path = "../RB99_1m.csv"
-niterations = 10
-population_size = 500
+niterations = 15
+population_size = 1000
 start_i = 10000 
 
 # 1. Fitness function for PySR
@@ -51,7 +52,7 @@ model = PySRRegressor(
 
     # Operators
     binary_operators=["+", "-", "*", "/",],
-    unary_operators=["sign","exp","log","sin",'cos'],
+    unary_operators=["sign","exp","log","sin",'cos','abs', 'relu','tanh'],
 
     # Model complexity control
     maxsize=20,
@@ -67,7 +68,6 @@ model = PySRRegressor(
     dimensionless_constants_only = True, # constants are dimensionless
     loss_function=elementwise_loss,
     dimensional_constraint_penalty=10000,
-
     # Optimization settings    
     # constraints={"constant_optimization": False},
 )

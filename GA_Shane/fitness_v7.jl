@@ -92,7 +92,7 @@ function eval_loss(tree, dataset::Dataset{T,L}, options)::L where {T,L}
     normality_stats = (10^(stats))
 
     # 10.5 is by experimental. pvalue is reversed by the pkg, so p_sw nears 0 is normally distribution .
-    if normality_stats>1.04
+    if normality_stats>1.03
         return L(normality_stats)
     end 
 

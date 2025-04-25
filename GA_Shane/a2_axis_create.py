@@ -12,13 +12,13 @@ import pickle
 code = 'RB'
 suffix = f'{code}99_1m'
 csv_path =   rf"E:\dragon\{suffix}.csv"
-part = '20250423_103729_r0uXA3'
+part = '20250424_164116_AHGfFf'
 model_pth =  rf'E:\dragon\GA_Shane\outputs\{part}\hall_of_fame.csv'
 project_pth = rf'E:\dragon\GA_Shane\outputs\{part}'
 
 print(f"Your axis file is in {part}")
-freq = 15
-i = -1
+freq = 45
+i = -2
 
 """
 Calculate factor based on a generated equation 

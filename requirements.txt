@@ -2,3 +2,5 @@ pycaret
 xgboost==1.7.6
 polars
 pyarrow
+antropy
+tsfel

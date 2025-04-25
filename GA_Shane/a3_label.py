@@ -9,7 +9,7 @@ import scipy.stats as scs
 import glob 
 import os 
 
-part = '20250423_103729_r0uXA3'
+part = '20250424_164116_AHGfFf'
 project_pth = f'E:/dragon/GA_Shane/outputs/{part}'
 
 os.chdir(project_pth)

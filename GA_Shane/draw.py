@@ -65,7 +65,7 @@ import re
 def fn(X,expression):
     if isinstance(X,pl.DataFrame):
         X = X.to_pandas()
-    reserved = {'max', 'min', 'sign','sin','cos','log','exp'}
+    reserved = {'max', 'min', 'sign','sin','cos','log','exp', 'tanh', 'abs', 'relu'}
     pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b')
 
     def replacer(match):
@@ -83,6 +83,9 @@ def fn(X,expression):
         'exp':np.exp,
         'sin':np.sin,
         'cos':np.cos,
+        'tanh': np.tanh,              # Hyperbolic tangent function
+        'abs': np.abs,                # Absolute value function
+        'relu': lambda x: np.maximum(0, x),  # Rectified Linear Unit function
     }
     result = eval(expr, env)
     if isinstance(result, (pd.Series, pd.DataFrame)):

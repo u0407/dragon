@@ -1,3 +1,4 @@
+
 import os 
 import numpy as np
 import pandas as pd
@@ -10,19 +11,22 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 
 from sklearn.feature_selection import VarianceThreshold
-from sklearn import preprocessing
+from sklearn.preprocessing import StandardScaler
 
 from functions import *
 
 warnings.filterwarnings('ignore')
 
-code = 'RB'
-test_start = '2023-01-01'
-fix = 913
 
-part = '20250423_103729_r0uXA3'
+part = '20250424_003413_oMFt2l'
 dir = f'E:/dragon/GA_Shane/outputs/{part}'
 
+code = 'RB'
+test_start = '2023-01-01'
+
+fix = 713
+
+shift_params = [1,3,5,9]
 window_size = 10 
 cfg = tsfel.get_features_by_domain(['statistical'])
 
@@ -40,15 +44,23 @@ df = df.merge(df_label[['datelist','state','state_p']], left_on='eob',right_on='
 df_label = df[['eob','state','state_p']]
 df.drop(columns=['datelist'],inplace=True)
 
+"""
+Function
+"""
+def assert_equal(a, b, ):
+    if a != b:
+        raise ValueError(f"Bars not equals {a} != {b}")
+
 """ 
 Feature Generation
 """
 features = ['open','high','low','close','volume']
-X = df.copy(deep=True)[['state','state_p']+features]
+X = df.copy(deep=True)[['eob','state','state_p']+features]
 X.loc[:,['state','state_p']] = X.loc[:,['state','state_p']].shift(-1)
-X = X.dropna()
-print(X.head())
-print("Original X.shape: ", X.shape)
+end_bar = X['eob'].iloc[-1]
+
+X = X.dropna(subset=features)
+assert_equal(end_bar, X['eob'].iloc[-1])
 
 price_features = ['open','high','low','close']
 volume_features = ['volume',]
@@ -98,43 +110,52 @@ use_std = True
 for feature in price_features:
     X[f'{feature}_sample_entropy'] = rolling_apply(dynamic_sample_entropy_numba, X[feature], window_size, m, r_ratio, use_std)
 
-
+# Remove features that is raw price or volume
 generated_features = [col for col in X.columns if col not in features]
-X = X[generated_features]
+X = X[['eob','state','state_p']+generated_features]
 
-print("Generated X.shape: ", X.shape)
-print('A0 in X' , 'A0' in X.columns)
-print("Null Rows count: ",(len(X.dropna())- len(X)))
-
-# Feature shifting
-shift_params = [1,3,5,9]
+# ---- Feature Shifting
+print('**** Feature Shifting ****')
 
 for shift in shift_params:
     X_shift = X[generated_features].shift(shift)
     X_shift.columns = [f'{col}_shift_{shift}' for col in generated_features]
     X = pd.concat([X, X_shift], axis=1)
-print("Generated X.shape with {} shifts : {}".format(len(shift_params),X.shape))
+
+
+column_inf_counts = X.apply(lambda x: np.isinf(x).sum()/len(x), axis=1)
+X = X.replace([np.inf, -np.inf], np.nan)
+
+
+features = [ col for col in X.columns if col not in ['eob','state','state_p']]
+print("columns with inf: ", column_inf_counts[column_inf_counts>0])
 print("Null Rows count: ",(len(X.dropna())- len(X)))
-X = X.dropna()
-inf_columns = X.columns[np.isinf(X).any()].tolist()
-X = X.rename(columns={'state':'A0','state_p':'A0_p'})
+
+X = X.dropna(subset=features)
+
+assert_equal(end_bar, X['eob'].iloc[-1])
 
 # Train Test Splitting
+print('**** Train Test Splitting ****')
+X = X.rename(columns={'state':'A0','state_p':'A0_p'})
+
+print("X.shape ", X.shape)
+print("Feature #: ", len(X.columns))
+print(X.tail())
+
+
 is_test = df['eob'] > test_start
 X_train = X[~is_test]
 X_test = X[is_test].drop(columns=['A0','A0_p'])
 
-from sklearn.preprocessing import StandardScaler
 # features = X_test.columns
 features =  [ col for col in X_test.columns if 'entropy' in col]
 scaler = StandardScaler().fit(X_train[features])
 X_train[features] = scaler.transform(X_train[features])
 X_test[features] = scaler.transform(X_test[features])
 
-
 print(X_train.tail())
-print(X_test.tail())
-print(df_label.tail())
+assert_equal(X_test['eob'].iloc[-1],df_label['eob'].iloc[-1])
 
 print('X train shape: ',X_train.shape)
 print('X test shape: ', X_test.shape)
