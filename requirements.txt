@@ -1,6 +1,9 @@
+antropy
+tsfel
 pycaret
 xgboost==1.7.6
 polars
 pyarrow
-antropy
-tsfel
+seaborn
+pysr==1.5.5
+hmmlearn

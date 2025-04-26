@@ -1,5 +1,6 @@
-# using Pkg ; Pkg.add("HypothesisTests"); Pkg.add("StatsBase");Pkg.add("ScikitLearnBase");Pkg.add("GaussianMixtures");Pkg.add("ShiftedArrays");
-# using Pkg;Pkg.add("CSV");Pkg.add("DataFrames");Pkg.add("Statistics");
+
+import Pkg; Pkg.add("Distributions");Pkg.add("HypothesisTests"); Pkg.add("StatsBase");Pkg.add("ScikitLearnBase");Pkg.add("GaussianMixtures");Pkg.add("ShiftedArrays");
+Pkg.add("CSV");Pkg.add("DataFrames");Pkg.add("Statistics");
 import Statistics
 using StatsBase
 using HypothesisTests
@@ -19,7 +20,7 @@ function eval_loss(tree, dataset::Dataset{T,L}, options)::L where {T,L}
     # Ensure constants are int with no digits . 
     for node in tree
         if node.degree == 0 && node.constant
-            val = node.val::T
+            val = node.val::T 
             if isnan(val)
                 return L(Inf)
             end

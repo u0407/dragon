@@ -18,12 +18,11 @@ warnings.filterwarnings('ignore')
 
 code = 'RB'
 roll = 5
-label = 30
 test_start = '2023-01-01'
-fix = 513
+fix = 713
 
-part = '20250421_155054_2XCKt6'
-dir = f'E:/dragon/GA_Shane/outputs/{part}'
+part = '20250426_023509_YvmTj7'
+dir = f'/home//dragon/GA_Shane/outputs/{part}'
 
 window_size = 10 
 cfg = tsfel.get_features_by_domain(['statistical'])

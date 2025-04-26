@@ -400,6 +400,7 @@ def transform(df):
     """
     if isinstance(df,pd.DataFrame):
         df = pl.DataFrame(df)
+        
     if 'eob' not in df.columns:
         df = df.rename({'datetime':'eob'})
         df = df.drop(['order_book_id','trading_date'])

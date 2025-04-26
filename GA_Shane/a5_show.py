@@ -21,10 +21,10 @@ rrr = 0.25     ###### 系数 ###################
 m = 1000     ###### 总资金 ###################
 
 fix = 713
-data_1_size = 4522     ###### 测试数据行数  ###############
+data_1_size = 2983     ###### 测试数据行数  ###############
 
-part = '20250424_003413_oMFt2l'
-dir = f'E:/dragon/GA_Shane/outputs/{part}'
+part = '20250426_023509_YvmTj7'
+dir = f'/home/dragon/GA_Shane/outputs/{part}'
 
 file_name_1 = glob.glob(os.path.join(dir, '*_output_axis.csv'))[0]
 data_1 = pd.read_csv(file_name_1)

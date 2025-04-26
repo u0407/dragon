@@ -5,18 +5,25 @@ from draw import transform
 import pandas as pd 
 
 
-# csv_path = './RB99_1m.csv'
-# df = pl.read_csv(csv_path)
-# df = df.rename({'datetime':'eob'})
-# df = df.drop(['order_book_id','trading_date'])
-# df = transform(df)
-# df, X_units_dict = gen_feature(df)
-# df.write_csv(csv_path + '.cache.csv')
-# with open(csv_path + '.cache.pkl', 'wb') as f:
-#     pickle.dump(X_units_dict, f)
+def agg_minute(df, n=5):
+    df = df.with_columns(
+        pl.col("index").floordiv(n).alias("group")
+    )
+    result = df.group_by("group").agg(
+        pl.last("index"),
+        pl.last("eob"),
+        pl.first("open"),
+        pl.max("high"),
+        pl.min("low"),
+        pl.last("close"),
+        pl.sum("total_turnover"),
+        pl.sum("volume"),
+        pl.last("open_interest"),
+    ).sort("group")
     
+    result = result.drop("group")
     
-    
+    return result
     
 
 def gen_feature(df):
@@ -54,18 +61,20 @@ def gen_feature(df):
     m = 2
     r_ratio = 1
     use_std = True 
-    print('close entropy')
     entropyfunc = pl.Series("close_etp",rolling_apply(dynamic_sample_entropy_numba, df['close'].to_numpy(), window_size, m, r_ratio, use_std))
     df = df.insert_column(-1, entropyfunc)
-    print('top to bot entropy')
     entropyfunc = pl.Series("t2b_etp",rolling_apply(dynamic_sample_entropy_numba, (df['top']/df['bot']).to_numpy(), window_size, m, r_ratio, use_std))
     df = df.insert_column(-1, entropyfunc)
 
-
-    # Previous shift of every feature.
     df = df.with_columns([
         pl.col(c).shift(1).alias(f'prev_{c}') for c in set1+set2+set3 if c in df.columns
     ])
+
+    df = df.with_columns(
+        [pl.max_horizontal(pl.col(col),pl.col(f'prev_{col}')).alias(f'mx2{col}') for col in ['high','low','top','bot','close','open']],
+    ).with_columns(
+        [pl.min_horizontal(pl.col(col),pl.col(f'prev_{col}')).alias(f'mn2{col}') for col in ['high','low','top','bot','close','open']],
+    )
 
     X_units_dict = {}
     for col in set1:
@@ -85,15 +94,27 @@ def gen_feature(df):
     return df, X_units_dict
 
 
+# csv_path = './RB99_1m.csv'
+# df = pl.read_csv(csv_path)
+# df = df.rename({'datetime':'eob'})
+# df = df.drop(['order_book_id','trading_date'])
+# df = transform(df)
+
+# df, X_units_dict = gen_feature(df)
+# df.write_csv(csv_path + '.cache.exp.csv')
+# with open(csv_path + '.cache.pkl', 'wb') as f:
+#     pickle.dump(X_units_dict, f)
+# print('1')
+
 csv_path = './RB99_1m.csv'
 df = pl.read_csv(csv_path)
 df = df.rename({'datetime':'eob'})
 df = df.drop(['order_book_id','trading_date'])
 df = transform(df)
-print(df.head())
-df, X_units_dict = gen_feature(df)
-df.write_csv(csv_path + '.cache.exp.csv')
-with open(csv_path + '.cache.pkl', 'wb') as f:
-    pickle.dump(X_units_dict, f)
-     
-    
+for i in [2,3]:
+    df_2m = agg_minute(df, n=i)
+    df_2m.write_csv(csv_path + f'.{i}m.csv')
+    df_2m,_ = gen_feature(df_2m)
+    df_2m.write_csv(csv_path + f'{i}m.csv.cache.exp.csv')
+    print(i)
+

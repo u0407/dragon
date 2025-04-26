@@ -11,19 +11,24 @@ import pickle
 
 code = 'RB'
 suffix = f'{code}99_1m'
-csv_path =   rf"E:\dragon\{suffix}.csv"
-part = '20250424_164116_AHGfFf'
-model_pth =  rf'E:\dragon\GA_Shane\outputs\{part}\hall_of_fame.csv'
-project_pth = rf'E:\dragon\GA_Shane\outputs\{part}'
+part = '20250426_100441_OMBx2l'
+model_pth =  rf'./GA_Shane/outputs/{part}/hall_of_fame.csv'
+project_pth = rf'./GA_Shane/outputs/{part}/'
 
 print(f"Your axis file is in {part}")
-freq = 45
-i = -2
+n_bar = 3
+freq = 20
+i = -1
 
 """
 Calculate factor based on a generated equation 
 """
-_df = pl.read_csv(csv_path + '.cache.csv')
+if n_bar == 1:
+    csv_path =   rf"/home/dragon/{suffix}.csv"
+    _df = pl.read_csv(csv_path + f'.cache.exp.csv')
+else:
+    csv_path =   rf"/home/dragon/{suffix}.csv.{n_bar}m.csv"
+    _df = pl.read_csv(csv_path + f'.cache.exp.csv')
 
 mdl_csv = pd.read_csv(model_pth)
 eq = mdl_csv['Equation'].values[i]

@@ -18,8 +18,8 @@ from functions import *
 warnings.filterwarnings('ignore')
 
 
-part = '20250424_003413_oMFt2l'
-dir = f'E:/dragon/GA_Shane/outputs/{part}'
+part = '20250426_100441_OMBx2l'
+dir = f'/home/dragon/GA_Shane/outputs/{part}'
 
 code = 'RB'
 test_start = '2023-01-01'
@@ -111,7 +111,7 @@ for feature in price_features:
     X[f'{feature}_sample_entropy'] = rolling_apply(dynamic_sample_entropy_numba, X[feature], window_size, m, r_ratio, use_std)
 
 # Remove features that is raw price or volume
-generated_features = [col for col in X.columns if col not in features]
+generated_features = [col for col in X.columns if col not in features and col not in ['eob','state','state_p']]
 X = X[['eob','state','state_p']+generated_features]
 
 # ---- Feature Shifting
@@ -123,12 +123,11 @@ for shift in shift_params:
     X = pd.concat([X, X_shift], axis=1)
 
 
-column_inf_counts = X.apply(lambda x: np.isinf(x).sum()/len(x), axis=1)
+# column_inf_counts = X.apply(lambda x: np.isinf(x).sum()/len(x), axis=1)
 X = X.replace([np.inf, -np.inf], np.nan)
 
-
 features = [ col for col in X.columns if col not in ['eob','state','state_p']]
-print("columns with inf: ", column_inf_counts[column_inf_counts>0])
+# print("columns with inf: ", column_inf_counts[column_inf_counts>0])
 print("Null Rows count: ",(len(X.dropna())- len(X)))
 
 X = X.dropna(subset=features)

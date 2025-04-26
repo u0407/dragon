@@ -20,16 +20,26 @@ os.chdir('./GA_Shane/')
 """
 7 - Jarque Bera Test
 """
-version = 7
-freq = 45
+version = 7 
+freq = 20
 L = 7
-print(f'version {version} ; freq {freq}; L {L}')
+use_minute_bar_of_freq_n = 3
+print(f'version {version} ; freq {freq}; L {L}; use {use_minute_bar_of_freq_n} min bar')
 
 length = 300000
-csv_path = "../RB99_1m.csv"
-niterations = 15
-population_size = 1000
+length = length // use_minute_bar_of_freq_n
+code = 'RB'
+niterations = 20
+population_size = 500
 start_i = 10000 
+start_i = start_i // use_minute_bar_of_freq_n
+
+
+
+if use_minute_bar_of_freq_n == 1:
+    csv_cache_path = f"../{code}99_1m.csv.cache.exp.csv"
+else:
+    csv_cache_path = f"../{code}99_1m.csv.{use_minute_bar_of_freq_n}m.csv.cache.exp.csv"
 
 # 1. Fitness function for PySR
 """
@@ -87,13 +97,12 @@ Then it will return no unit operators.
 """
 print("Init data ... ")
 
-# df = pl.read_csv(csv_path + '.cache.csv')
-df = pl.read_csv(csv_path + '.cache.exp.csv')
+df = pl.read_csv(csv_cache_path)
 
-with open(csv_path + '.cache.pkl', 'rb') as f:
+with open('/home/dragon/RB99_1m.csv.cache.pkl', 'rb') as f:
     X_units_dict = pickle.load(f)
 
-df = slice_df(df, start_i=start_i*2, length = length, end_i=120000)
+df = slice_df(df, start_i=start_i*2, length = length, end_i=(120000//freq))
 
 X_units = [ X_units_dict[x] for x in df.columns if x in X_units_dict.keys()]
 X = df.dropna()[X_units_dict.keys()]
