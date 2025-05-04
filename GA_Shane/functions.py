@@ -1,9 +1,10 @@
 import numba
 import numpy as np
 import pylab # Still needed for fast_fracdiff as currently written
+import antropy as ant
 
 """
-Core calculation functions (mostly Numba-optimized) and a stride-based
+Core calculation functions (mostly Numba-optimized) and arr stride-based
 rolling window template.
 """
 
@@ -19,6 +20,27 @@ def rolling_apply_last(func, arr, window_size=10, *args):
     w_arr = np.lib.stride_tricks.sliding_window_view(arr, window_size)
     results = [np.nan]*(window_size-1) + [func(window, *args)[-1] for window in w_arr]
     return np.array(results)
+
+def rolling_apply_matrix(func, arrs, window_size=10, *args):
+    # arr must in the order of [open,high,low,close,volume,total_turnover,open_interest]
+    w_arr = np.lib.stride_tricks.sliding_window_view(arrs, (window_size, 1))
+    res_arr = [func(window[:,:,0].T, *args) for window in w_arr]
+    if isinstance(res_arr[0], float):
+        pass
+    elif len(res_arr[0].shape) == 1: # if is a float
+        res_arr = [res[0] for res in res_arr]
+    elif len(res_arr[0].shape) == 2: # if is a (float, ) in a array
+        res_arr = [res[-1][0] for res in res_arr]
+    results = [np.nan]*(window_size-1) + res_arr
+    return np.array(results)
+
+def rolling_apply_last_matrix(func, arrs, window_size=10, *args):
+    # arr must in the order of [open,high,low,close,volume,total_turnover,open_interest]
+    w_arr = np.lib.stride_tricks.sliding_window_view(arrs, (window_size, 1))
+    results = [np.nan]*(window_size-1) + [func(window, *args)[-1][0] for window in w_arr]
+    return np.array(results)
+
+
 
 
 # ---- Base Operators ---- 
@@ -42,9 +64,118 @@ def sum(arr,):
 def prod(arr,):
     return np.prod(arr)
 
+@numba.njit(fastmath=True, cache=True)
+def min_(arr,):
+    return np.min(arr)
 
+@numba.njit(fastmath=True, cache=True)
+def max_(arr,):
+    return np.max(arr)
 
+@numba.njit(fastmath=True, cache=True)
+def delay(arr, n=1):
+    return np.concatenate((np.full(n, np.nan), arr[:-n]))
 
+@numba.njit(fastmath=True, cache=True)
+def delta(arr, n=1):
+    return np.concatenate((np.full(n, np.nan), arr[n:] - arr[:-n]))
+
+@numba.njit(fastmath=True, cache=True)
+def pchg(arr, n=1):
+    return np.concatenate((np.full(n, np.nan), (arr[n:] - arr[:-n]) / arr[:-n]))
+
+@numba.njit(fastmath=True, cache=True)
+def log_ret(arr, n=1):
+    log_arr = np.log(arr)
+    ret = log_arr[n:] - log_arr[:-n]
+    # result = np.empty_like(arr)
+    # result[:n] = np.nan
+    # result[n:] = ret
+    return ret
+
+@numba.njit(fastmath=True, cache=True)
+def argmin(arr,):
+    return np.argmin(arr)
+
+@numba.njit(fastmath=True, cache=True)
+def argmax(arr,):
+    return np.argmax(arr)
+
+# @numba.njit(fastmath=True, cache=True)
+def corr(arr1, arr2):
+    return np.corrcoef(arr1, arr2)[0, 1]
+
+def rank(arr):
+    n = len(arr)
+    sorted_indices = np.argsort(arr)
+    ranks = np.empty(n, dtype=np.int32)
+    ranks[sorted_indices] = np.arange(1, n + 1)
+    return ranks
+
+# @numba.njit(fastmath=True, cache=True)
+def rank_corr(arr1, arr2):
+    rank1 = rank(arr1.flatten())
+    rank2 = rank(arr2.flatten())
+    return np.corrcoef(rank1, rank2)[0, 1]
+
+@numba.njit(fastmath=True, cache=True)
+def scale(arr):
+    return (arr-np.mean(arr)) / np.std(arr)
+
+@numba.njit(fastmath=True, cache=True)
+def sign(arr):
+    return np.sign(arr)
+
+@numba.njit(fastmath=True, cache=True)
+def signpow(arr, n=1):
+    return np.sign(arr) * np.abs(arr) ** n
+
+@numba.njit(fastmath=True, cache=True)
+def skewness(arr):
+    arr = (arr - np.mean(arr)) / np.std(arr)
+    skew = np.mean((arr - np.mean(arr)) ** 3) / np.std(arr) ** 3
+    return skew
+
+@numba.njit(fastmath=True, cache=True)
+def kurtosis(arr):
+    arr = (arr - np.mean(arr)) / np.std(arr)
+    kurt = np.mean((arr - np.mean(arr)) ** 4) / np.std(arr) ** 4
+    return kurt
+
+@numba.njit(fastmath=True, cache=True)
+def momentum(arr,n=5):
+    arr = (arr - np.nanmean(arr)) / np.nanstd(arr)
+    momentum_5 = np.nanmean((arr-np.nanmean(arr))**n) / np.nanstd(arr)**n
+    return momentum_5
+
+@numba.njit(fastmath=True, cache=True)
+def corr(arr1, arr2):
+    return np.corrcoef(arr1, arr2)[0, 1]
+
+@numba.njit(fastmath=True, cache=True)
+def value_at_risk(a, alpha=0.05):
+    a = (a - np.mean(a)) / np.std(a)
+    var = np.percentile(a, alpha * 100)
+    return var
+
+# --- TIme Series ---
+def ts_rank(x, d):
+    return rolling_apply(rank, x, d)
+
+def ts_argmax(x, d):
+    return rolling_apply(argmax, x, d)
+
+def ts_argmin(x, d):
+    return rolling_apply(argmin, x, d)
+    
+def ts_max(x, d):
+    return rolling_apply(max_, x, d)
+
+def ts_min(x, d):
+    return rolling_apply(min_, x, d)
+
+def pearson(x, y, d):
+    return rolling_apply(pearson, x, y, d)
 
 # --- Non-Numba FracDiff ---
 # (Keeping original for completeness)
@@ -114,7 +245,7 @@ def sample_entropy_numba(x, emb_dim, tolerance):
     return -np.log(phi_emb_dim_plus_one / phi_emb_dim)
 
 @numba.njit(fastmath=True, cache=True)
-def dynamic_sample_entropy_numba(x, m, r_ratio, use_std):
+def dynamic_sample_entropy_numba(x, m=1, r_ratio=1, use_std=True):
     if use_std:
         std_x = np.std(x)
         if std_x < 1e-6:
@@ -138,7 +269,7 @@ from scipy.fft import fft, ifft
 import numpy as np
 
 def create_symmetric_matrix(acf, order=11):
-    """Computes a symmetric matrix.
+    """Computes arr symmetric matrix.
 
     Implementation details and description in:
     https://ccrma.stanford.edu/~orchi/Documents/speaker_recognition_report.pdf
@@ -146,7 +277,7 @@ def create_symmetric_matrix(acf, order=11):
     Parameters
     ----------
     acf : nd-array
-        Input from which a symmetric matrix is computed
+        Input from which arr symmetric matrix is computed
     order : int
         Order
 
@@ -186,7 +317,7 @@ def lpc(signal, n_coeff=12):
     if signal.ndim > 1:
         raise ValueError("Only 1 dimensional arrays are valid")
     if n_coeff > signal.size:
-        raise ValueError("Input signal must have a length >= n_coeff")
+        raise ValueError("Input signal must have arr length >= n_coeff")
 
     # Calculate the order based on the number of coefficients
     order = n_coeff - 1
@@ -210,6 +341,9 @@ def lpc(signal, n_coeff=12):
 
 def lpcc(signal, n_coeff=12,i=0):
     """Computes linear prediction cepstral coefficients using scipy.fft"""
+    if len(signal)<n_coeff:
+        return np.nan
+    
     lpc_coeffs = lpc(signal, n_coeff)
     if np.allclose(lpc_coeffs, 0): return tuple(np.zeros(n_coeff))
     
@@ -218,3 +352,44 @@ def lpcc(signal, n_coeff=12,i=0):
     lpcc_coeff = ifft(log_spectrum)[:n_coeff]
     
     return tuple(np.abs(lpcc_coeff.real))[i]
+
+
+import numpy as np
+
+def reshape(arr, w):
+    """
+    Reshapes an array to match the target window size w.
+    
+    Parameters:
+    - arr: Input array (list or numpy array)
+    - w: Target window size (int)
+    
+    Returns:
+    - Reshaped array with length equal to w
+    """
+    current_len = len(arr)
+    
+    if current_len == w:
+        return np.array(arr)
+    
+    # Case 1: Array is smaller than window size - stretch by repeating elements
+    elif current_len < w:
+        # Calculate stretch factors
+        stretch_factors = np.linspace(0, current_len-1, w)
+        # Interpolate by selecting nearest elements
+        stretched_arr = [arr[int(round(i))] for i in stretch_factors]
+        return np.array(stretched_arr)
+    
+    # Case 2: Array is larger than window size - shrink by aggregating
+    else:
+        # Calculate how many elements to aggregate for each new element
+        agg_size = current_len / w
+        shrunk_arr = []
+        
+        for i in range(w):
+            start = int(round(i * agg_size))
+            end = int(round((i + 1) * agg_size))
+            # Take mean of the aggregated elements
+            shrunk_arr.append(np.mean(arr[start:end]))
+        
+        return np.array(shrunk_arr)
