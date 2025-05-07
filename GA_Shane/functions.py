@@ -88,9 +88,6 @@ def pchg(arr, n=1):
 def log_ret(arr, n=1):
     log_arr = np.log(arr)
     ret = log_arr[n:] - log_arr[:-n]
-    # result = np.empty_like(arr)
-    # result[:n] = np.nan
-    # result[n:] = ret
     return ret
 
 @numba.njit(fastmath=True, cache=True)
@@ -130,22 +127,65 @@ def sign(arr):
 def signpow(arr, n=1):
     return np.sign(arr) * np.abs(arr) ** n
 
+
+
+@numba.njit(fastmath=True, cache=True)
+def std(arr):
+    mean = np.sum(arr) / len(arr)
+    sum_sq = 0.0
+    for x in arr:
+        sum_sq += (x - mean) ** 2
+    n = len(arr)
+    if n == 1:
+        return 0
+    std = np.sqrt(sum_sq / (n - 1))
+    if std == 0:
+        return 0.0 
+    return std
+
 @numba.njit(fastmath=True, cache=True)
 def skewness(arr):
-    arr = (arr - np.mean(arr)) / np.std(arr)
-    skew = np.mean((arr - np.mean(arr)) ** 3) / np.std(arr) ** 3
+    mean = np.sum(arr) / len(arr)
+    sum_cubed = 0.0
+    sum_sq = 0.0
+    n = len(arr)
+    for x in arr:
+        dev = x - mean
+        sum_sq += dev ** 2
+        sum_cubed += dev ** 3
+    if n <= 1 or sum_sq == 0:
+        return 0.0
+    variance = sum_sq / (n - 1)
+    std = np.sqrt(variance)
+    skew = (sum_cubed / n) / (std ** 3)
+    if n >= 3:
+        skew *= (n * (n - 1)) ** 0.5 / (n - 2)
     return skew
 
 @numba.njit(fastmath=True, cache=True)
 def kurtosis(arr):
-    arr = (arr - np.mean(arr)) / np.std(arr)
-    kurt = np.mean((arr - np.mean(arr)) ** 4) / np.std(arr) ** 4
+    mean = np.sum(arr) / len(arr)
+    sum_quad = 0.0
+    sum_sq = 0.0
+    n = len(arr)
+    for x in arr:
+        dev = x - mean
+        dev_sq = dev ** 2
+        sum_sq += dev_sq
+        sum_quad += dev_sq ** 2
+    if n <= 1 or sum_sq == 0:
+        return 0.0
+    variance = sum_sq / (n - 1)
+    kurt = (sum_quad / n) / (variance ** 2) - 3
+    if n >= 4:
+        kurt = ((n + 1) * kurt + 6) * (n - 1) / ((n - 2) * (n - 3))
     return kurt
 
 @numba.njit(fastmath=True, cache=True)
 def momentum(arr,n=5):
-    arr = (arr - np.nanmean(arr)) / np.nanstd(arr)
-    momentum_5 = np.nanmean((arr-np.nanmean(arr))**n) / np.nanstd(arr)**n
+    
+    arr = (arr - np.nanmean(arr)) / std 
+    momentum_5 = np.nanmean((arr-np.nanmean(arr))**n) / std**n
     return momentum_5
 
 @numba.njit(fastmath=True, cache=True)
@@ -157,6 +197,13 @@ def value_at_risk(a, alpha=0.05):
     a = (a - np.mean(a)) / np.std(a)
     var = np.percentile(a, alpha * 100)
     return var
+
+# @numba.njit(fastmath=True, cache=True)
+def maxdd(arr):
+    running_max_y = np.maximum.accumulate(arr)
+    dd = arr / running_max_y - 1 
+    return - np.min(dd)
+
 
 # --- TIme Series ---
 def ts_rank(x, d):
@@ -260,7 +307,27 @@ def dynamic_sample_entropy_numba(x, m=1, r_ratio=1, use_std=True):
     entropy =  sample_entropy_numba(x, m, r)
     if np.isnan(entropy):
         return 0
+    if np.isinf(entropy):
+        return 5
     return entropy
+
+
+@numba.njit(fastmath=True, cache=True)
+def simple_sign_entropy(arr):
+    signs = np.sign(arr)
+    pos_count = np.sum(signs == 1)
+    neg_count = np.sum(signs == -1)
+    zero_count = np.sum(signs == 0)
+    total = len(arr)
+    if total == 0:
+        return 0.0
+    p = np.array([pos_count, neg_count, zero_count], dtype=np.float64) / total
+    log_p = np.zeros(3)
+    for i in range(3):
+        if p[i] > 0:
+            log_p[i] = np.log(p[i])
+    entropy = -np.sum(p * log_p)
+    return entropy / np.log(3)
 
 # LPCC
 

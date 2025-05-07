@@ -49,6 +49,7 @@ def gen_feature(df):
         ((pl.col('high')+pl.col('low'))/2).alias('mid_hl'),
         ((pl.col('high')+pl.col('bot'))/2).alias('hbar'),
         ((pl.col('low')+pl.col('top'))/2).alias('lbar'),
+
     ])
 
     # log
@@ -68,6 +69,13 @@ def gen_feature(df):
 
     df = df.with_columns([
         pl.col(c).shift(1).alias(f'prev_{c}') for c in set1+set2+set3 if c in df.columns
+    ])
+
+    df = df.with_columns([
+        (pl.col('high') - pl.col('low')).alias('bar_spread'),
+        (pl.col('close') - pl.col('open')).alias('bar_box'),
+        (pl.col('close') - pl.col('prev_close')).alias('bar_ret'),  # Note: Ensure 'prev_close' exists
+        (pl.col('open') - pl.col('prev_close')).alias('bar_jump')   # Note: Ensure 'prev_close' exists
     ])
 
     df = df.with_columns(
@@ -94,17 +102,17 @@ def gen_feature(df):
     return df, X_units_dict
 
 
-# csv_path = './RB99_1m.csv'
-# df = pl.read_csv(csv_path)
-# df = df.rename({'datetime':'eob'})
-# df = df.drop(['order_book_id','trading_date'])
-# df = transform(df)
+csv_path = './RB99_1m.csv'
+df = pl.read_csv(csv_path)
+df = df.rename({'datetime':'eob'})
+df = df.drop(['order_book_id','trading_date'])
+df = transform(df)
 
-# df, X_units_dict = gen_feature(df)
-# df.write_csv(csv_path + '.cache.exp.csv')
-# with open(csv_path + '.cache.pkl', 'wb') as f:
-#     pickle.dump(X_units_dict, f)
-# print('1')
+df, X_units_dict = gen_feature(df)
+df.write_csv(csv_path + '.cache.exp.csv')
+with open(csv_path + '.cache.pkl', 'wb') as f:
+    pickle.dump(X_units_dict, f)
+print('1')
 
 csv_path = './RB99_1m.csv'
 df = pl.read_csv(csv_path)
@@ -115,6 +123,6 @@ for i in [2,3]:
     df_2m = agg_minute(df, n=i)
     df_2m.write_csv(csv_path + f'.{i}m.csv')
     df_2m,_ = gen_feature(df_2m)
-    df_2m.write_csv(csv_path + f'{i}m.csv.cache.exp.csv')
+    df_2m.write_csv(csv_path + f'.{i}m.csv.cache.exp.csv')
     print(i)
 

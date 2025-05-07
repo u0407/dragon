@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
+from dotenv import load_dotenv
+load_dotenv()
 
 #########  RB   计算系数    ###################
 
@@ -20,18 +22,24 @@ sell = 0     ##### 空 ####################
 rrr = 0.25     ###### 系数 ###################
 m = 1000     ###### 总资金 ###################
 
-fix = 713
-data_1_size = 2983     ###### 测试数据行数  ###############
+fix = 513
+# data_1_size = 1852     ###### 测试数据行数  ###############
 
-part = '20250426_023509_YvmTj7'
-dir = f'/home/dragon/GA_Shane/outputs/{part}'
+
+with open('./part.txt', 'r', encoding='utf-8') as file:
+    part = file.read()
+dir = f'c:/Users/shen_/Code/dragon/GA_Shane/outputs/{part}'
 
 file_name_1 = glob.glob(os.path.join(dir, '*_output_axis.csv'))[0]
 data_1 = pd.read_csv(file_name_1)
 
 file_name_2 = glob.glob(os.path.join(dir, f'*_output_axis_Label_{str(fix)}.csv'))[0]
 data_2 = pd.read_csv(file_name_2)
+test_path = glob.glob(os.path.join(dir,f'*_Test_{fix}_*_PCA.csv'))[0]
 
+data_1_size = int(test_path.split('_')[-2])
+assert str(data_1_size) in test_path
+print('data_1_size: ',data_1_size)
 
 os.makedirs(os.path.join(dir,'temp'),exist_ok=True)
 os.chdir(os.path.join(dir,'temp'))
@@ -54,7 +62,9 @@ data_2_state = data_2_state.reset_index(drop=True)  ###重置索引
 data_1_new['low'] = data_2_state
 
 for i in range(1,data_1_size+1):
+    # data_1_new['volume'][i] = data_1_new['close'][i] - data_1_new['close'][i-1] 
     data_1_new['volume'][i] = data_1_new['close'][i] - data_1_new['close'][i-1] 
+
     
 data_1_new = data_1_new.tail(data_1_size)
 

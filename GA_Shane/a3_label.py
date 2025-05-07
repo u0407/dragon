@@ -8,9 +8,12 @@ from matplotlib import pyplot as plt
 import scipy.stats as scs 
 import glob 
 import os 
+from dotenv import load_dotenv
+load_dotenv()
 
-part = '20250426_100441_OMBx2l'
-project_pth = f'/home/dragon/GA_Shane/outputs/{part}'
+with open('./part.txt', 'r', encoding='utf-8') as file:
+    part = file.read()
+project_pth = f'c:/Users/shen_/Code/dragon/GA_Shane/outputs/{part}'
 
 os.chdir(project_pth)
 
@@ -33,8 +36,6 @@ for L in [5,7,9]:
     low = df['low'][L:]
     eob = df['eob']
     datelist = pd.to_datetime(eob[L:])
-
-
 
     logreturn = (np.log(np.array(close[1:]))-np.log(np.array(close[:-1])))[(L-1):]
     logreturnX = np.log(np.array(close[L:]))-np.log(np.array(close[:-L]))
@@ -95,7 +96,7 @@ for L in [5,7,9]:
 
 
     # 自动判断，将标签的 1与0，变为buy为1，sell为0
-    data = pd.DataFrame({'datelist':datelist,'logreturn':logreturn,'state':latent_states_sequence,'state_p':latent_states_proba}).set_index('datelist')
+    data = pd.DataFrame({'datelist':datelist,'logreturn':logreturn,'state':latent_states_sequence}).set_index('datelist')
     for i in range(gmm.n_components):
         state = (latent_states_sequence == i)
         idx = np.append(0,state[:-1])
