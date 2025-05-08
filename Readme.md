@@ -1,8 +1,13 @@
-RB99_1m.csv
-![alt text](image.png)
+### 实盘推理的步骤
 
-output_axis.csv
+1. 获取实时数据
 
-![alt text](image-1.png)
+2. 实时数据生成轴所需要的算子
 
-![alt text](image.png)
+3. 算子计算轴，生成轴文件
+
+4. 根据轴文件生成特征
+
+5. 对X预测
+
+6. 发送信号

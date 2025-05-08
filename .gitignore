@@ -10,3 +10,4 @@ GA_Shane/__pycache__
 *.nbi
 *.pkl
 output.tar.gz
+infer/__pycache__

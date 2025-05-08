@@ -1,9 +1,9 @@
-import seaborn as sns
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 def kde_plot(series,save_to_path=None):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
 
     # assert isinstance(series, pd.Series)
     if not isinstance(series, pd.Series):
@@ -61,37 +61,6 @@ def auto_round(x):
                 closest_value = candidate
     return closest_value
 
-import re 
-def fn(X,expression):
-    if isinstance(X,pl.DataFrame):
-        X = X.to_pandas()
-    reserved = {'max', 'min', 'sign','sin','cos','log','exp', 'tanh', 'abs', 'relu'}
-    pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b')
-
-    def replacer(match):
-        var_name = match.group(1)
-        return var_name if var_name in reserved else f"X['{var_name}']"
-    expr = pattern.sub(replacer, expression)
-
-    env = {
-        'X': X,                       # DataFrame containing features
-        'max': np.maximum,            # Element-wise maximum
-        'min': np.minimum,            # Element-wise minimum
-        'sign': np.sign,              # Element-wise sign function
-        'np': np,                     # Include numpy for advanced operations
-        'log':np.log,
-        'exp':np.exp,
-        'sin':np.sin,
-        'cos':np.cos,
-        'tanh': np.tanh,              # Hyperbolic tangent function
-        'abs': np.abs,                # Absolute value function
-        'relu': lambda x: np.maximum(0, x),  # Rectified Linear Unit function
-    }
-    result = eval(expr, env)
-    if isinstance(result, (pd.Series, pd.DataFrame)):
-        return result.values
-    else:
-        return np.array(result)  # Handle scalar results
 
 def bar_split(arr, freq=30):
     """

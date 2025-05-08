@@ -1,4 +1,4 @@
-from functions import *
+from .functions import *
 
 @numba.njit(fastmath=True, cache=True)
 def inside_bar_ret_min(arr):

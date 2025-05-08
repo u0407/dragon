@@ -1,6 +1,7 @@
 import warnings 
 warnings.filterwarnings('ignore')   
 from draw import * 
+from functions import fn
 import os
 from dotenv import load_dotenv
 load_dotenv()

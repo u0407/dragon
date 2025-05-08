@@ -39,7 +39,6 @@ def gen_feature(df):
         pl.max_horizontal(pl.col('open'), pl.col('close')).alias('top'),
         pl.min_horizontal(pl.col('open'), pl.col('close')).alias('bot'),
         (pl.col('volume')/(pl.col('open_interest')+1e-6)).alias('vol2oi'),
-
     ])
 
     df = df.with_columns([
